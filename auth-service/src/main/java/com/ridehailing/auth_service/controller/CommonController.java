@@ -9,5 +9,4 @@ public class CommonController {
     public String healthCheck() {
         return "Auth Service is up and running";
     }
-
 }
