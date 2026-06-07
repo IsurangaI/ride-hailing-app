@@ -20,7 +20,7 @@ public class AuthService {
 
     @Transactional
     public User register(String email, String password, Role role) {
-        if(userRepository.findByEmail(email).isPresent()) {
+        if (userRepository.findByEmail(email).isPresent()) {
             throw new EmailAlreadyExistsException(email);
         }
 
