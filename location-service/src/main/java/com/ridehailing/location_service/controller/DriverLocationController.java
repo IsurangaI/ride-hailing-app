@@ -16,7 +16,7 @@ import java.util.List;
 public class DriverLocationController {
     private final DriverLocationService driverLocationService;
 
-    @PostMapping("/update")
+    @PostMapping("/ping")
     public ResponseEntity<Void> updateLocation(@Valid @RequestBody DriverLocationRequest request) {
         driverLocationService.updateDriverLocation(request);
         return ResponseEntity.ok().build();

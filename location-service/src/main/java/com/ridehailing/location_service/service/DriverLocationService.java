@@ -3,13 +3,18 @@ package com.ridehailing.location_service.service;
 import com.ridehailing.location_service.model.request.DriverLocationRequest;
 import com.ridehailing.location_service.model.response.DriverLocationResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.geo.Circle;
+import org.springframework.data.geo.Distance;
 import org.springframework.data.geo.Point;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,8 +47,26 @@ public class DriverLocationService {
     }
 
 
-    public List<DriverLocationResponse> findNearbyDrivers( double latitude, double longitude, double radius){
-        // call redis
-        return Arrays.asList(new DriverLocationResponse());
+    public List<String> findNearby(double lat, double lng, double radiusKm) {
+        // matching-service will also call this directly via Redis
+        // but we expose it here too for debugging/admin use
+        var circle = new Circle(
+                new Point(lng, lat),
+                new Distance(radiusKm, Metrics.KILOMETERS)
+        );
+        var args = RedisGeoCommands.GeoRadiusCommandArgs
+                .newGeoRadiusArgs()
+                .includeDistance()
+                .sortAscending()
+                .limit(10);
+
+        var results = redisTemplate.opsForGeo()
+                .radius(GEO_AVAILABLE, circle, args);
+
+        if (results == null) return List.of();
+
+        return results.getContent().stream()
+                .map(r -> r.getContent().getName())
+                .collect(Collectors.toList());
     }
 }
