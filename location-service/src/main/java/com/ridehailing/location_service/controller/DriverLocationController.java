@@ -11,14 +11,14 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/location")
+@RequestMapping("/api/locations")
 @RequiredArgsConstructor
 public class DriverLocationController {
     private final DriverLocationService driverLocationService;
 
     @PostMapping("/ping")
     public ResponseEntity<Void> updateLocation(
-            @RequestHeader("X-User-Id") Long driverId,
+            @RequestHeader("X-User-Id") String driverId,
             @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody DriverLocationRequest request) {
         // Assuming DriverLocationRequest needs to be updated to include driverId,

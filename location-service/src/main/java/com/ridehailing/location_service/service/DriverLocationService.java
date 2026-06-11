@@ -24,18 +24,18 @@ public class DriverLocationService {
     private static final String GEO_ALL      = "driver:locations:all";
     private static final String GEO_AVAILABLE = "driver:locations:available";
 
-    public void updateDriverLocation(Long driverId, DriverLocationRequest driverLocationRequest){
+    public void updateDriverLocation(String driverId, DriverLocationRequest driverLocationRequest){
         Point point = new Point(driverLocationRequest.longitude(), driverLocationRequest.latitude()); // Redis: lng first
 
         // Always update the full location set
-        redisTemplate.opsForGeo().add(GEO_ALL, point, driverId.toString());
+        redisTemplate.opsForGeo().add(GEO_ALL, point, driverId);
 
         if (driverLocationRequest.available()) {
             // Driver is available — add to the available set
-            redisTemplate.opsForGeo().add(GEO_AVAILABLE, point, driverId.toString());
+            redisTemplate.opsForGeo().add(GEO_AVAILABLE, point, driverId);
         } else {
             // Driver went offline or started a ride — remove from available
-            redisTemplate.opsForGeo().remove(GEO_AVAILABLE, driverId.toString());
+            redisTemplate.opsForGeo().remove(GEO_AVAILABLE, driverId);
         }
 
         // Set a TTL on the driver's presence key — if no ping for 30s, treat as offline
