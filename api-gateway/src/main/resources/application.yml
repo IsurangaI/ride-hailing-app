@@ -19,7 +19,7 @@ spring:
           predicates:
             - Path=/api/locations/**
           filters:
-            - JwtAuthFilter   # Our custom filter (built in Step 4)
+            - JwtAuthFilter
 
         # Booking service — JWT required
         - id: booking-service
@@ -34,4 +34,4 @@ server:
 
 jwt:
   # Must be the EXACT same secret as in auth-service/application.yml
-  secret: your-256-bit-secret-key-change-this-in-production-minimum-32-chars
+  secret: ${JWT_SECRET}

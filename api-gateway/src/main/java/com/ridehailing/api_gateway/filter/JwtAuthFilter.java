@@ -1,6 +1,7 @@
 package com.ridehailing.api_gateway.filter;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
@@ -12,6 +13,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.SecretKey;
+import java.security.Key;
 
 @Component
 public class JwtAuthFilter extends AbstractGatewayFilterFactory<Object> {
@@ -35,9 +37,8 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<Object> {
 
             try {
                 // 2. Validate the token and extract the email claim
-                SecretKey key = Keys.hmacShaKeyFor(secret.getBytes());
                 Claims claims = Jwts.parser()
-                        .verifyWith(key)
+                        .verifyWith((SecretKey) getSignKey())
                         .build()
                         .parseSignedClaims(token)
                         .getPayload();
@@ -69,5 +70,10 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<Object> {
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         exchange.getResponse().getHeaders().add("X-Auth-Error", message);
         return exchange.getResponse().setComplete();
+    }
+
+    private Key getSignKey() {
+        byte[] keyBytes = Decoders.BASE64.decode(secret);
+        return Keys.hmacShaKeyFor(keyBytes);
     }
 }
