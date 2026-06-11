@@ -1,6 +1,9 @@
 package com.ridehailing.location_service.service;
 
 import com.ridehailing.location_service.model.request.DriverLocationRequest;
+import com.ridehailing.location_service.exception.DriverRequestValidationException;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.geo.Circle;
 import org.springframework.data.geo.Distance;
@@ -12,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -19,12 +23,15 @@ import java.util.stream.Collectors;
 public class DriverLocationService {
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final Validator validator; // Inject Validator
 
     // Two Redis keys — one for all driver positions, one for available-only
     private static final String GEO_ALL      = "driver:locations:all";
     private static final String GEO_AVAILABLE = "driver:locations:available";
 
     public void updateDriverLocation(String driverId, DriverLocationRequest driverLocationRequest){
+        // Manual validation
+        this.validateDriverLocationRequest(driverLocationRequest, driverId);
         Point point = new Point(driverLocationRequest.longitude(), driverLocationRequest.latitude()); // Redis: lng first
 
         // Always update the full location set
@@ -66,5 +73,20 @@ public class DriverLocationService {
         return results.getContent().stream()
                 .map(r -> r.getContent().getName())
                 .collect(Collectors.toList());
+    }
+
+    public void validateDriverLocationRequest(DriverLocationRequest driverLocationRequest, String driverId){
+        Set<ConstraintViolation<DriverLocationRequest>> violations = validator.validate(driverLocationRequest);
+        if (!violations.isEmpty()) {
+            String errorMessage = violations.stream()
+                    .map(violation -> violation.getPropertyPath() + ": " + violation.getMessage())
+                    .collect(Collectors.joining(", "));
+            throw new DriverRequestValidationException("Validation failed for DriverLocationRequest: " + errorMessage);
+        }
+
+        // Check if path variable driverId matches request body driverId
+        if (!driverId.equals(driverLocationRequest.driverId())) {
+            throw new DriverRequestValidationException("Driver ID not recognized.");
+        }
     }
 }

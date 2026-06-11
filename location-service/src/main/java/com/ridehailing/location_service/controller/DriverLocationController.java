@@ -1,7 +1,7 @@
 package com.ridehailing.location_service.controller;
 
+import com.ridehailing.location_service.annontation.RequireRole;
 import com.ridehailing.location_service.model.request.DriverLocationRequest;
-import com.ridehailing.location_service.model.response.DriverLocationResponse;
 import com.ridehailing.location_service.service.DriverLocationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +17,10 @@ public class DriverLocationController {
     private final DriverLocationService driverLocationService;
 
     @PostMapping("/ping")
+    @RequireRole("DRIVER")
     public ResponseEntity<Void> updateLocation(
             @RequestHeader("X-User-Id") String driverId,
-            @RequestHeader("X-User-Role") String role,
             @Valid @RequestBody DriverLocationRequest request) {
-        // Assuming DriverLocationRequest needs to be updated to include driverId,
-        // or the service method needs to be updated to take driverId as a separate parameter.
-        // For now, I'll pass driverId to the service.
         driverLocationService.updateDriverLocation(driverId, request);
         return ResponseEntity.ok().build();
     }
