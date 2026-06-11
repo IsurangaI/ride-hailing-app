@@ -1,7 +1,6 @@
 package com.ridehailing.location_service.service;
 
 import com.ridehailing.location_service.model.request.DriverLocationRequest;
-import com.ridehailing.location_service.model.response.DriverLocationResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.geo.Circle;
 import org.springframework.data.geo.Distance;
@@ -12,7 +11,6 @@ import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -26,28 +24,28 @@ public class DriverLocationService {
     private static final String GEO_ALL      = "driver:locations:all";
     private static final String GEO_AVAILABLE = "driver:locations:available";
 
-    public void updateDriverLocation(DriverLocationRequest driverLocationRequest){
+    public void updateDriverLocation(Long driverId, DriverLocationRequest driverLocationRequest){
         Point point = new Point(driverLocationRequest.longitude(), driverLocationRequest.latitude()); // Redis: lng first
 
         // Always update the full location set
-        redisTemplate.opsForGeo().add(GEO_ALL, point, driverLocationRequest.driverId());
+        redisTemplate.opsForGeo().add(GEO_ALL, point, driverId.toString());
 
         if (driverLocationRequest.available()) {
             // Driver is available — add to the available set
-            redisTemplate.opsForGeo().add(GEO_AVAILABLE, point, driverLocationRequest.driverId());
+            redisTemplate.opsForGeo().add(GEO_AVAILABLE, point, driverId.toString());
         } else {
             // Driver went offline or started a ride — remove from available
-            redisTemplate.opsForGeo().remove(GEO_AVAILABLE, driverLocationRequest.driverId());
+            redisTemplate.opsForGeo().remove(GEO_AVAILABLE, driverId.toString());
         }
 
         // Set a TTL on the driver's presence key — if no ping for 30s, treat as offline
-        redisTemplate.expire("driver:active:" + driverLocationRequest.driverId(),
+        redisTemplate.expire("driver:active:" + driverId,
                 Duration.ofSeconds(30));
-        redisTemplate.opsForValue().set("driver:active:" + driverLocationRequest.driverId(), "1");
+        redisTemplate.opsForValue().set("driver:active:" + driverId, "1");
     }
 
 
-    public List<String> findNearby(double lat, double lng, double radiusKm) {
+    public List<String> findNearbyDrivers(double lat, double lng, double radiusKm) {
         // matching-service will also call this directly via Redis
         // but we expose it here too for debugging/admin use
         var circle = new Circle(
