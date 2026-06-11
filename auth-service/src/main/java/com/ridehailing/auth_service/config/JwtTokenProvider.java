@@ -1,5 +1,6 @@
 package com.ridehailing.auth_service.config;
 
+import com.ridehailing.auth_service.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -26,9 +27,11 @@ public class JwtTokenProvider {
     private long expiration; // in milliseconds
 
     public String generateToken(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        User user = (User) authentication.getPrincipal();
         Map<String, Object> claims = new HashMap<>();
-        return createToken(claims, userDetails.getUsername());
+        claims.put("userId", user.getId());
+        claims.put("role", user.getRole().name());
+        return createToken(claims, user.getUsername());
     }
 
     private String createToken(Map<String, Object> claims, String userName) {
