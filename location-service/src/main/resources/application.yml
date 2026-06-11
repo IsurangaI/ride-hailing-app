@@ -1,6 +1,9 @@
 spring:
   application:
     name: location-service
+  threads:
+    virtual:
+      enabled: true
   data:
     redis:
       host: ${REDIS_HOST}
