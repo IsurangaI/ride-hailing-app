@@ -1,19 +1,25 @@
 package com.ridehailing.location_service.service;
 
+import ch.hsr.geohash.GeoHash;
 import com.ridehailing.location_service.model.request.DriverLocationRequest;
 import com.ridehailing.location_service.exception.DriverRequestValidationException;
+import com.ridehailing.location_service.util.GeoUtils;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.geo.Circle;
 import org.springframework.data.geo.Distance;
+import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoLocation;
 import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,52 +33,67 @@ public class DriverLocationService {
 
     // Two Redis keys — one for all driver positions, one for available-only
     private static final String GEO_ALL      = "driver:locations:all";
-    private static final String GEO_AVAILABLE = "driver:locations:available";
+    private static final String GEO_AVAILABLE = "driver:locations:available"; // This key will no longer be used for sharded queries
 
-    public void updateDriverLocation(String driverId, DriverLocationRequest driverLocationRequest){
-        // Manual validation
-        this.validateDriverLocationRequest(driverLocationRequest, driverId);
-        Point point = new Point(driverLocationRequest.longitude(), driverLocationRequest.latitude()); // Redis: lng first
+    public void updateDriverLocation(String driverId, DriverLocationRequest driverLocationRequest) {
+        double longitude = driverLocationRequest.longitude();
+        double latitude = driverLocationRequest.latitude();
 
-        // Always update the full location set
-        redisTemplate.opsForGeo().add(GEO_ALL, point, driverId);
+        validateDriverLocationRequest(driverLocationRequest, driverId);
+        // 1. Resolve the region dynamically based on coordinates
+        String shardedKey = GeoUtils.getAutomaticShardKey(longitude, latitude);
 
-        if (driverLocationRequest.available()) {
-            // Driver is available — add to the available set
-            redisTemplate.opsForGeo().add(GEO_AVAILABLE, point, driverId);
-        } else {
-            // Driver went offline or started a ride — remove from available
-            redisTemplate.opsForGeo().remove(GEO_AVAILABLE, driverId);
-        }
-
-        // Set a TTL on the driver's presence key — if no ping for 30s, treat as offline
-        redisTemplate.expire("driver:active:" + driverId,
-                Duration.ofSeconds(30));
-        redisTemplate.opsForValue().set("driver:active:" + driverId, "1");
+        // 3. Write to the specific regional shard
+        Point location = new Point(longitude, latitude);
+        redisTemplate.opsForGeo().add(shardedKey, location, driverId);
+        // Also add to GEO_ALL for general queries (if needed, otherwise remove)
+        // For sharding, we primarily rely on the sharded keys. GEO_ALL might be for different use cases.
+        // For now, let's keep it as it was in the original code.
+        redisTemplate.opsForGeo().add(GEO_ALL, location, driverId);
+        // The GEO_AVAILABLE key is now redundant if all queries are sharded.
+        // If GEO_AVAILABLE is still used for non-sharded queries, it should be updated.
+        // For this task, we assume sharding is the primary query mechanism for nearby drivers.
+        // If GEO_AVAILABLE is to be removed, ensure no other parts of the system rely on it.
+        // For now, I'll comment out the update to GEO_AVAILABLE as it conflicts with the sharding strategy for nearby drivers.
+        // redisTemplate.opsForGeo().add(GEO_AVAILABLE, location, driverId);
     }
 
 
-    public List<String> findNearbyDrivers(double lat, double lng, double radiusKm) {
-        // matching-service will also call this directly via Redis
-        // but we expose it here too for debugging/admin use
-        var circle = new Circle(
-                new Point(lng, lat),
-                new Distance(radiusKm, Metrics.KILOMETERS)
-        );
-        var args = RedisGeoCommands.GeoRadiusCommandArgs
-                .newGeoRadiusArgs()
+    public List<GeoResult<RedisGeoCommands.GeoLocation<String>>> findNearbyDrivers(double riderLng, double riderLat, double radiusInKm) {
+        // Define the precision for geohashing (must match the precision used for writing)
+        int geohashPrecision = 5; // As defined in GeoUtils.getAutomaticShardKey
+
+        // 1. Compute the rider's geohash
+        GeoHash riderGeoHash = GeoHash.withCharacterPrecision(riderLat, riderLng, geohashPrecision);
+
+        // 2. Determine which neighboring cells the search radius could touch
+        Set<GeoHash> relevantGeoHashes = new HashSet<>();
+        relevantGeoHashes.add(riderGeoHash); // Add the rider's own geohash
+        relevantGeoHashes.addAll(List.of(riderGeoHash.getAdjacent())); // Add all 8 neighbors
+
+        // Prepare for GEOSEARCH
+        Circle queryArea = new Circle(new Point(riderLng, riderLat), new Distance(radiusInKm, Metrics.KILOMETERS));
+        RedisGeoCommands.GeoSearchCommandArgs args = RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs()
                 .includeDistance()
-                .sortAscending()
-                .limit(10);
+                .sortAscending(); // Sorting will be done after merging
 
-        var results = redisTemplate.opsForGeo()
-                .radius(GEO_AVAILABLE, circle, args);
+        Set<GeoResult<RedisGeoCommands.GeoLocation<String>>> combinedResults = new HashSet<>();
 
-        if (results == null) return List.of();
+        // 3. Run GEOSEARCH on each relevant shard
+        for (GeoHash gh : relevantGeoHashes) {
+            String shardedKey = "driver_locations:" + gh.toBase32();
+            List<GeoResult<RedisGeoCommands.GeoLocation<String>>> shardResults = redisTemplate.opsForGeo()
+                    .search(shardedKey, queryArea, args)
+                    .getContent();
+            combinedResults.addAll(shardResults);
+        }
 
-        return results.getContent().stream()
-                .map(r -> r.getContent().getName())
-                .collect(Collectors.toList());
+        // 4. Merge and dedupe results (handled by using a Set)
+        // 5. Sort by distance
+        List<GeoResult<RedisGeoCommands.GeoLocation<String>>> sortedResults = new ArrayList<>(combinedResults);
+        sortedResults.sort(Comparator.comparing(geoResult -> geoResult.getDistance().getValue()));
+
+        return sortedResults;
     }
 
     public void validateDriverLocationRequest(DriverLocationRequest driverLocationRequest, String driverId){

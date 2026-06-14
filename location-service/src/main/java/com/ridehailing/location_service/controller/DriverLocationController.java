@@ -5,6 +5,8 @@ import com.ridehailing.location_service.model.request.DriverLocationRequest;
 import com.ridehailing.location_service.service.DriverLocationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.geo.GeoResult;
+import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,7 +28,7 @@ public class DriverLocationController {
     }
 
     @GetMapping("/nearby")
-    public ResponseEntity<List<String>> getNearbyDrivers(
+    public ResponseEntity<List<GeoResult<RedisGeoCommands.GeoLocation<String>>>> getNearbyDrivers(
             @RequestParam double latitude,
             @RequestParam double longitude,
             @RequestParam(defaultValue = "5.0") double radius) {
