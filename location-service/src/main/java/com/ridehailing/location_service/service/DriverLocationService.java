@@ -13,7 +13,6 @@ import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.domain.geo.GeoLocation;
 import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.stereotype.Service;
 
@@ -83,7 +82,7 @@ public class DriverLocationService {
         for (GeoHash gh : relevantGeoHashes) {
             String shardedKey = "driver_locations:" + gh.toBase32();
             List<GeoResult<RedisGeoCommands.GeoLocation<String>>> shardResults = redisTemplate.opsForGeo()
-                    .search(shardedKey, queryArea, args)
+                    .search(shardedKey, queryArea)
                     .getContent();
             combinedResults.addAll(shardResults);
         }
