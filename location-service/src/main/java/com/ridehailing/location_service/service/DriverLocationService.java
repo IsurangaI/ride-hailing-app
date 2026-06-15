@@ -46,15 +46,7 @@ public class DriverLocationService {
         Point location = new Point(longitude, latitude);
         redisTemplate.opsForGeo().add(shardedKey, location, driverId);
         // Also add to GEO_ALL for general queries (if needed, otherwise remove)
-        // For sharding, we primarily rely on the sharded keys. GEO_ALL might be for different use cases.
-        // For now, let's keep it as it was in the original code.
         redisTemplate.opsForGeo().add(GEO_ALL, location, driverId);
-        // The GEO_AVAILABLE key is now redundant if all queries are sharded.
-        // If GEO_AVAILABLE is still used for non-sharded queries, it should be updated.
-        // For this task, we assume sharding is the primary query mechanism for nearby drivers.
-        // If GEO_AVAILABLE is to be removed, ensure no other parts of the system rely on it.
-        // For now, I'll comment out the update to GEO_AVAILABLE as it conflicts with the sharding strategy for nearby drivers.
-        // redisTemplate.opsForGeo().add(GEO_AVAILABLE, location, driverId);
     }
 
 
