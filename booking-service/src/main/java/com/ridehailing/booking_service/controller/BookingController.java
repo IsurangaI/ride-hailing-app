@@ -2,6 +2,7 @@ package com.ridehailing.booking_service.controller;
 
 
 import com.ridehailing.booking_service.model.Booking;
+import com.ridehailing.booking_service.model.request.BookingRequest;
 import com.ridehailing.booking_service.service.BookingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -23,9 +24,9 @@ public class BookingController {
 
 
     @GetMapping
-    public ResponseEntity<String> requestRide(@RequestBody Booking bookingRequest){
-        bookingService.requestRide(bookingRequest.getRiderId(), bookingRequest.getPickupLocation(), bookingRequest.getDropoffLocation())
-        return ResponseEntity.ok("Ride requested successfully");
+    public ResponseEntity<String> requestRide(@RequestBody BookingRequest bookingRequest){
+        String bookingId = bookingService.createBooking(bookingRequest);
+        return ResponseEntity.ok("Booking created with ID: " + bookingId);
     }
 
 
