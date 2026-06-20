@@ -2,7 +2,7 @@ spring:
   application:
     name: booking-service
   datasource:
-    url: ${DB_URL}
+    url: ${DB_URL}/bookingdb
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
