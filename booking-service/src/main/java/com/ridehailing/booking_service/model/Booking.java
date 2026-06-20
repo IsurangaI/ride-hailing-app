@@ -17,7 +17,7 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String riderId;
+    private String passengerId;
     private Double pickupLongitude;
     private Double pickupLatitude;
     private Double destinationLongitude;

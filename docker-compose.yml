@@ -39,6 +39,16 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  kafka-ui:
+      container_name: kafka-ui
+      image: provectuslabs/kafka-ui:latest
+      ports:
+        - "8080:8080" # Maps the UI to localhost:8080
+      environment:
+        - KAFKA_CLUSTERS_0_NAME=Local-Cluster
+        - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092 # Change 'kafka' if your service is named differently
+      depends_on:
+        - kafka # Change this if your kafka service has a different name
 
 volumes:
   postgres_data:
