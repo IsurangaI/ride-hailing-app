@@ -9,7 +9,13 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Wait for the leader to acknowledge the write for durability
+      acks: 1
 server:
   port: 8082
   servlet:
