@@ -33,7 +33,7 @@ public class BookingService {
     public String createBooking(BookingRequest bookingRequest) {
         try {
             Booking booking = Booking.builder()
-                    .riderId(bookingRequest.getRiderId())
+                    .passengerId(bookingRequest.getPassengerId())
                     .pickupLongitude(bookingRequest.getPickupLongitude())
                     .pickupLatitude(bookingRequest.getPickupLatitude())
                     .destinationLongitude(bookingRequest.getDestinationLongitude())
@@ -46,7 +46,7 @@ public class BookingService {
 
             RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
                     .bookingId(savedBooking.getId())
-                    .riderId(savedBooking.getRiderId())
+                    .riderId(savedBooking.getPassengerId())
                     .pickupLongitude(savedBooking.getPickupLongitude())
                     .pickupLatitude(savedBooking.getPickupLatitude())
                     .destinationLongitude(savedBooking.getDestinationLongitude())
@@ -68,11 +68,11 @@ public class BookingService {
             log.info("Successfully recorded booking [{}] and outbox message concurrently.", savedBooking.getId());
             return savedBooking.getId().toString();
         } catch (JsonProcessingException e) {
-            log.error("Failed to serialize RideRequestedEvent for rider {}: {}", bookingRequest.getRiderId(), e.getMessage());
+            log.error("Failed to serialize RideRequestedEvent for rider {}: {}", bookingRequest.getPassengerId(), e.getMessage());
             throw new BookingCreationException("Failed to process booking request due to serialization error.", e);
         } catch (Exception e) {
-            log.error("Error occurred while recording booking for rider {}: {}", bookingRequest.getRiderId(), e.getMessage(), e);
-            throw new BookingCreationException("Failed to create booking for rider " + bookingRequest.getRiderId(), e);
+            log.error("Error occurred while recording booking for rider {}: {}", bookingRequest.getPassengerId(), e.getMessage(), e);
+            throw new BookingCreationException("Failed to create booking for rider " + bookingRequest.getPassengerId(), e);
         }
     }
 }
