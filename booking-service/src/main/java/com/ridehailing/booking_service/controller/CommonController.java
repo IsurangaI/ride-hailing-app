@@ -4,7 +4,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @RestController
-@RequestMapping("api/bookings")
+@RequestMapping("/v1/common")
 public class CommonController {
     @GetMapping("/health")
     public String healthCheck() {
