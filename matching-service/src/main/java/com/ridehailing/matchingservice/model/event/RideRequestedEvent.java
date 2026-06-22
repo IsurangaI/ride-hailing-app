@@ -5,7 +5,7 @@ import java.util.UUID;
 
 @Data
 public class RideRequestedEvent {
-    private UUID bookingId;
+    private Long bookingId;
     private String riderId;
     private double pickupLongitude;
     private double pickupLatitude;
