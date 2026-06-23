@@ -21,6 +21,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class MatchingService {
+    private static final String MATCHED = "MATCHED";
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -90,7 +91,7 @@ public class MatchingService {
         DriverMatchedEvent matchEvent = new DriverMatchedEvent(
                 event.getBookingId(),
                 selectedDriverId,
-                "MATCHED"
+                MATCHED
         );
 
         // Drop the event into the new topic for the Booking Service to consume
