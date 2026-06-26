@@ -1,6 +1,7 @@
 package com.ridehailing.matchingservice.service;
 
 import ch.hsr.geohash.GeoHash;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ridehailing.matchingservice.model.event.DriverMatchedEvent;
 import com.ridehailing.matchingservice.model.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -62,7 +63,7 @@ public class MatchingService {
         return sortedResults;
     }
 
-    public void findAndAssignDriver(RideRequestedEvent event) {
+    public void findAndAssignDriver(RideRequestedEvent event) throws JsonProcessingException {
         log.info("Initiating driver search for Booking ID: {}", event.getBookingId());
 
         // 1. Execute your geospatial search (e.g., 3.0 kilometer radius)
