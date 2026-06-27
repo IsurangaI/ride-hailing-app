@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.exception.BookingCreationException;
+import com.ridehailing.booking_service.exception.BookingNotFoundException;
 import com.ridehailing.booking_service.model.Booking;
 import com.ridehailing.booking_service.model.OutboxMessage;
 import com.ridehailing.booking_service.model.event.DriverMatchedEvent;
@@ -90,5 +91,14 @@ public class BookingService {
             });
         } catch (Exception e) {
             log.error("Error occurred while accepting booking for driver {}: {}", driverMatchedEvent.getDriverId(), e.getMessage(), e);}
+    }
+
+    public RideStatus getBookingStatus(Long id) {
+        return bookingRepository.findById(id)
+                .map(Booking::getStatus)
+                .orElseThrow(() -> {
+                    log.error("Booking [{}] not found.", id);
+                    return new BookingNotFoundException("Booking not found with id: " + id);
+                });
     }
 }
