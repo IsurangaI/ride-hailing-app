@@ -77,14 +77,18 @@ public class BookingService {
         }
     }
 
-    public void acceptBooking(DriverMatchedEvent driverMatchedEvent){
-        bookingRepository.findById(driverMatchedEvent.getBookingId()).ifPresentOrElse(booking -> {
-            booking.setDriverId(driverMatchedEvent.getDriverId());
-            booking.setStatus(RideStatus.ACCEPTED);
-            bookingRepository.save(booking);
-            log.info("Booking [{}] accepted by driver [{}].", booking.getId(), driverMatchedEvent.getDriverId());
-        }, () -> {
-            log.error("Booking [{}] not found for driver [{}].", driverMatchedEvent.getBookingId(), driverMatchedEvent.getDriverId());
-        });
+    public void acceptBooking(DriverMatchedEvent driverMatchedEvent) {
+        long bookingId = driverMatchedEvent.getBookingId();
+        try {
+            bookingRepository.findById(bookingId).ifPresentOrElse(booking -> {
+                booking.setDriverId(driverMatchedEvent.getDriverId());
+                booking.setStatus(RideStatus.ACCEPTED);
+                bookingRepository.save(booking);
+                log.info("Booking [{}] accepted by driver [{}].", booking.getId(), driverMatchedEvent.getDriverId());
+            }, ()->{
+                log.error("Booking [{}] not found for driver [{}].", driverMatchedEvent.getBookingId(), driverMatchedEvent.getDriverId());
+            });
+        } catch (Exception e) {
+            log.error("Error occurred while accepting booking for driver {}: {}", driverMatchedEvent.getDriverId(), e.getMessage(), e);}
     }
 }
