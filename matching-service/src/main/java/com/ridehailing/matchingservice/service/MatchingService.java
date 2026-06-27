@@ -1,6 +1,7 @@
 package com.ridehailing.matchingservice.service;
 
 import ch.hsr.geohash.GeoHash;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ridehailing.matchingservice.model.event.DriverMatchedEvent;
 import com.ridehailing.matchingservice.model.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class MatchingService {
+    private static final String MATCHED = "MATCHED";
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
@@ -61,7 +63,7 @@ public class MatchingService {
         return sortedResults;
     }
 
-    public void findAndAssignDriver(RideRequestedEvent event) {
+    public void findAndAssignDriver(RideRequestedEvent event) throws JsonProcessingException {
         log.info("Initiating driver search for Booking ID: {}", event.getBookingId());
 
         // 1. Execute your geospatial search (e.g., 3.0 kilometer radius)
@@ -90,7 +92,7 @@ public class MatchingService {
         DriverMatchedEvent matchEvent = new DriverMatchedEvent(
                 event.getBookingId(),
                 selectedDriverId,
-                "MATCHED"
+                MATCHED
         );
 
         // Drop the event into the new topic for the Booking Service to consume
