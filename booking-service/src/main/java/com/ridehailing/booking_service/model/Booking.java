@@ -27,4 +27,5 @@ public class Booking {
     private RideStatus status; // PENDING, ACCEPTED, REJECTED, COMPLETED
 
     private LocalDateTime createdAt;
+    private String driverId;
 }
