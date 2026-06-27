@@ -16,8 +16,8 @@ public class BookingController {
 
     private final BookingService bookingService;
 
-    @GetMapping
-    public ResponseEntity<String> requestRide(@RequestBody BookingRequest bookingRequest) {
+    @PostMapping
+    public ResponseEntity<String> createBooking(@RequestBody BookingRequest bookingRequest) {
         String bookingId = bookingService.createBooking(bookingRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(bookingId);
     }
