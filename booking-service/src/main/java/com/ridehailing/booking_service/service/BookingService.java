@@ -6,6 +6,7 @@ import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.exception.BookingCreationException;
 import com.ridehailing.booking_service.model.Booking;
 import com.ridehailing.booking_service.model.OutboxMessage;
+import com.ridehailing.booking_service.model.event.DriverMatchedEvent;
 import com.ridehailing.booking_service.model.event.RideRequestedEvent;
 import com.ridehailing.booking_service.model.request.BookingRequest;
 import com.ridehailing.booking_service.repository.BookingRepository;
@@ -74,5 +75,16 @@ public class BookingService {
             log.error("Error occurred while recording booking for rider {}: {}", bookingRequest.getPassengerId(), e.getMessage(), e);
             throw new BookingCreationException("Failed to create booking for rider " + bookingRequest.getPassengerId(), e);
         }
+    }
+
+    public void acceptBooking(DriverMatchedEvent driverMatchedEvent){
+        bookingRepository.findById(driverMatchedEvent.getBookingId()).ifPresentOrElse(booking -> {
+            booking.setDriverId(driverMatchedEvent.getDriverId());
+            booking.setStatus(RideStatus.ACCEPTED);
+            bookingRepository.save(booking);
+            log.info("Booking [{}] accepted by driver [{}].", booking.getId(), driverMatchedEvent.getDriverId());
+        }, () -> {
+            log.error("Booking [{}] not found for driver [{}].", driverMatchedEvent.getBookingId(), driverMatchedEvent.getDriverId());
+        });
     }
 }
