@@ -3,6 +3,7 @@ package com.ridehailing.booking_service.scheduler;
 
 import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.model.Booking;
+import com.ridehailing.booking_service.model.event.RideRequestedEvent;
 import com.ridehailing.booking_service.repository.BookingRepository;
 import com.ridehailing.booking_service.service.BookingService;
 import jakarta.transaction.Transactional;
@@ -11,12 +12,13 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Component
 @AllArgsConstructor
 public class ScheduledBookingSweeper {
-
+    private static final String EVENT_TYPE_RIDE_REQUESTED = "RideRequestedEvent";
     private final BookingRepository bookingRepository;
     private final BookingService bookingService;
 
@@ -36,7 +38,18 @@ public class ScheduledBookingSweeper {
 
             bookingRepository.save(booking);
 
-            bookingService.persistOutBoxMessage(booking);
+            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
+                    .bookingId(booking.getId())
+                    .riderId(booking.getPassengerId())
+                    .pickupLongitude(booking.getPickupLongitude())
+                    .pickupLatitude(booking.getPickupLatitude())
+                    .destinationLongitude(booking.getDestinationLongitude())
+                    .destinationLatitude(booking.getDestinationLatitude())
+                    .requestedAt(LocalDateTime.now())
+                    .rejectedDrivers(booking.getRejectedDrivers())
+                    .build();
+
+            bookingService.persistOutBoxMessage(booking, rideRequestedEvent,EVENT_TYPE_RIDE_REQUESTED );
         }
     }
 
