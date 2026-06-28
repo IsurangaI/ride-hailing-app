@@ -29,8 +29,6 @@ import java.util.Optional;
 public class BookingService {
 
     private static final String AGGREGATE_TYPE_BOOKING = "BOOKING";
-    private static final String EVENT_TYPE_RIDE_REQUESTED = "RideRequestedEvent";
-    private static final String EVENT_TYPE_TRIP_COMPLETED = "TripCompletedEvent";
 
     private final BookingRepository bookingRepository;
     private final OutboxMessagingRepository outboxMessagingRepository;
@@ -137,7 +135,7 @@ public class BookingService {
             TripCompletedEvent tripCompletedEvent = TripCompletedEvent.builder().bookingId(booking.getId()).driverId(booking.getDriverId()).passengerId(booking.getPassengerId()).completedAt(LocalDateTime.now()).build();
 
             String jsonPayload = objectMapper.writeValueAsString(tripCompletedEvent);
-            OutboxMessage outboxMessage = OutboxMessage.builder().aggregateType(AGGREGATE_TYPE_BOOKING).aggregateId(booking.getId().toString()).eventType(EVENT_TYPE_TRIP_COMPLETED).payload(jsonPayload).processed(false).createdAt(LocalDateTime.now()).build();
+            OutboxMessage outboxMessage = OutboxMessage.builder().aggregateType(AGGREGATE_TYPE_BOOKING).aggregateId(booking.getId().toString()).eventType(tripCompletedEvent.getEventType()).payload(jsonPayload).processed(false).createdAt(LocalDateTime.now()).build();
             outboxMessagingRepository.save(outboxMessage);
             log.info("Successfully recorded TripCompletedEvent for booking [{}].", booking.getId());
         } catch (JsonProcessingException e) {
