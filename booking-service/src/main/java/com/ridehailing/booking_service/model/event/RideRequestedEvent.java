@@ -1,5 +1,6 @@
 package com.ridehailing.booking_service.model.event;
 
+import com.ridehailing.booking_service.model.Booking;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -22,10 +23,6 @@ public class RideRequestedEvent {
     private Double destinationLongitude;
     private Double destinationLatitude;
     private LocalDateTime requestedAt;
-
-    @ElementCollection
-    @CollectionTable(name = "booking_rejected_drivers", joinColumns = @JoinColumn(name = "booking_id"))
-    @Column(name = "driver_id")
     private List<String> rejectedDrivers; //the blacklist
 
 }
