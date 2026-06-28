@@ -1,3 +1,5 @@
 .env
 **/src/main/resources/application-local.yml
 .idea/workspace.xml
+.idea/libraries/
+auth-service/.run/
