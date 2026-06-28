@@ -43,7 +43,7 @@ services:
       container_name: kafka-ui
       image: provectuslabs/kafka-ui:latest
       ports:
-        - "8080:8080" # Maps the UI to localhost:8080
+        - "9000:9000" # Maps the UI to localhost:8090
       environment:
         - KAFKA_CLUSTERS_0_NAME=Local-Cluster
         - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:29092 # Change 'kafka' if your service is named differently
