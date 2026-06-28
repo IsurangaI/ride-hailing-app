@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -63,6 +64,7 @@ public class BookingService {
             booking.ifPresentOrElse(b -> {
                 b.setStatus(RideStatus.OFFERING);
                 b.setDriverId(rideOfferedEvent.getDriverId());
+                b.setUpdatedAt(Instant.now());
                 bookingRepository.save(b);
             }, RuntimeException::new);
         } catch (Exception e) {
@@ -90,6 +92,8 @@ public class BookingService {
 
         booking.setStatus(RideStatus.ACCEPTED);
         bookingRepository.save(booking);
+
+        //need to drop an event and notify the rider and implement the downstream process
     }
 
     @Transactional
@@ -106,7 +110,7 @@ public class BookingService {
         this.persistOutBoxMessage(savedBooking);
     }
 
-    private void persistOutBoxMessage(Booking booking) {
+    public void persistOutBoxMessage(Booking booking) {
         try {
             RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
                     .bookingId(booking.getId())
