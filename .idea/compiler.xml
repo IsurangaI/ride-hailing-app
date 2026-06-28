@@ -16,6 +16,7 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="fareservice" />
         <module name="fare-service" />
       </profile>
       <profile name="Annotation profile for matchingservice" enabled="true">
@@ -31,6 +32,9 @@
         <module name="booking_service" />
       </profile>
     </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="fare-service" target="21" />
+    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -38,6 +42,7 @@
       <module name="auth-service" options="-parameters" />
       <module name="booking_service" options="-parameters" />
       <module name="fare-service" options="-parameters" />
+      <module name="fareservice" options="-parameters" />
       <module name="location-service" options="-parameters" />
       <module name="matchingservice" options="-parameters" />
     </option>
