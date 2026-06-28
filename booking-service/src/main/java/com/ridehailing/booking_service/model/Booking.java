@@ -31,6 +31,8 @@ public class Booking {
 
 
     private LocalDateTime createdAt;
+    private LocalDateTime startedAt;
+    private LocalDateTime completedAt;
     private Instant updatedAt;
     private String driverId;
 

@@ -7,8 +7,10 @@ import com.ridehailing.booking_service.exception.BookingCreationException;
 import com.ridehailing.booking_service.exception.BookingNotFoundException;
 import com.ridehailing.booking_service.model.Booking;
 import com.ridehailing.booking_service.model.OutboxMessage;
+import com.ridehailing.booking_service.model.event.Event;
 import com.ridehailing.booking_service.model.event.RideOfferedEvent;
 import com.ridehailing.booking_service.model.event.RideRequestedEvent;
+import com.ridehailing.booking_service.model.event.TripCompletedEvent;
 import com.ridehailing.booking_service.model.request.BookingRequest;
 import com.ridehailing.booking_service.repository.BookingRepository;
 import com.ridehailing.booking_service.repository.OutboxMessagingRepository;
@@ -28,6 +30,7 @@ public class BookingService {
 
     private static final String AGGREGATE_TYPE_BOOKING = "BOOKING";
     private static final String EVENT_TYPE_RIDE_REQUESTED = "RideRequestedEvent";
+    private static final String EVENT_TYPE_TRIP_COMPLETED = "TripCompletedEvent";
 
     private final BookingRepository bookingRepository;
     private final OutboxMessagingRepository outboxMessagingRepository;
@@ -48,7 +51,18 @@ public class BookingService {
 
             Booking savedBooking = bookingRepository.save(booking);
 
-            this.persistOutBoxMessage(savedBooking);
+            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
+                    .bookingId(savedBooking.getId())
+                    .riderId(savedBooking.getPassengerId())
+                    .pickupLongitude(savedBooking.getPickupLongitude())
+                    .pickupLatitude(savedBooking.getPickupLatitude())
+                    .destinationLongitude(savedBooking.getDestinationLongitude())
+                    .destinationLatitude(savedBooking.getDestinationLatitude())
+                    .requestedAt(LocalDateTime.now())
+                    .rejectedDrivers(savedBooking.getRejectedDrivers())
+                    .build();
+
+            this.persistOutBoxMessage(savedBooking,rideRequestedEvent, EVENT_TYPE_RIDE_REQUESTED);
 
             return savedBooking.getId().toString();
         } catch (Exception e) {
@@ -107,28 +121,81 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
         // FIRE THE SAGA AGAIN: Drop a new RideRequestedEvent into the Outbox
         // so the Matching Service finds the NEXT nearest driver.
-        this.persistOutBoxMessage(savedBooking);
+        RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
+                .bookingId(booking.getId())
+                .riderId(booking.getPassengerId())
+                .pickupLongitude(booking.getPickupLongitude())
+                .pickupLatitude(booking.getPickupLatitude())
+                .destinationLongitude(booking.getDestinationLongitude())
+                .destinationLatitude(booking.getDestinationLatitude())
+                .requestedAt(LocalDateTime.now())
+                .rejectedDrivers(booking.getRejectedDrivers())
+                .build();
+        this.persistOutBoxMessage(savedBooking, rideRequestedEvent, EVENT_TYPE_RIDE_REQUESTED);
     }
 
-    public void persistOutBoxMessage(Booking booking) {
+    @Transactional
+    public void startBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (!booking.getStatus().equals(RideStatus.ACCEPTED)) {
+            throw new IllegalStateException("Booking can only be started if its status is ACCEPTED. Current status: " + booking.getStatus());
+        }
+
+        booking.setStatus(RideStatus.IN_PROGRESS);
+        booking.setStartedAt(LocalDateTime.now());
+        bookingRepository.save(booking);
+        log.info("Booking [{}] started successfully.", bookingId);
+    }
+
+    @Transactional
+    public void endBooking(Long bookingId) {
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+
+        if (!booking.getStatus().equals(RideStatus.IN_PROGRESS)) {
+            throw new IllegalStateException("Booking can only be ended if its status is IN_PROGRESS. Current status: " + booking.getStatus());
+        }
+
+        booking.setStatus(RideStatus.COMPLETED);
+        booking.setCompletedAt(LocalDateTime.now());
+        bookingRepository.save(booking);
+        log.info("Booking [{}] ended successfully.", bookingId);
+
         try {
-            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
+            TripCompletedEvent tripCompletedEvent = TripCompletedEvent.builder()
                     .bookingId(booking.getId())
-                    .riderId(booking.getPassengerId())
-                    .pickupLongitude(booking.getPickupLongitude())
-                    .pickupLatitude(booking.getPickupLatitude())
-                    .destinationLongitude(booking.getDestinationLongitude())
-                    .destinationLatitude(booking.getDestinationLatitude())
-                    .requestedAt(LocalDateTime.now())
-                    .rejectedDrivers(booking.getRejectedDrivers())
+                    .driverId(booking.getDriverId())
+                    .passengerId(booking.getPassengerId())
+                    .completedAt(LocalDateTime.now())
                     .build();
 
-
-            String jsonPayload = objectMapper.writeValueAsString(rideRequestedEvent);
+            String jsonPayload = objectMapper.writeValueAsString(tripCompletedEvent);
             OutboxMessage outboxMessage = OutboxMessage.builder()
                     .aggregateType(AGGREGATE_TYPE_BOOKING)
                     .aggregateId(booking.getId().toString())
-                    .eventType(EVENT_TYPE_RIDE_REQUESTED)
+                    .eventType(EVENT_TYPE_TRIP_COMPLETED)
+                    .payload(jsonPayload)
+                    .processed(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            outboxMessagingRepository.save(outboxMessage);
+            log.info("Successfully recorded TripCompletedEvent for booking [{}].", booking.getId());
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize TripCompletedEvent for booking {}: {}", booking.getId(), e.getMessage());
+            throw new RuntimeException("Failed to process trip completion due to serialization error.", e);
+        }
+    }
+
+
+    public void persistOutBoxMessage(Booking booking, Event event, String eventType) {
+        try {
+            String jsonPayload = objectMapper.writeValueAsString(event);
+            OutboxMessage outboxMessage = OutboxMessage.builder()
+                    .aggregateType(AGGREGATE_TYPE_BOOKING)
+                    .aggregateId(booking.getId().toString())
+                    .eventType(eventType)
                     .payload(jsonPayload)
                     .processed(false)
                     .createdAt(LocalDateTime.now())
