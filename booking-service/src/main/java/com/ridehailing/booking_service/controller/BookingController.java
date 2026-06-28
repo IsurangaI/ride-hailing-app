@@ -41,4 +41,16 @@ public class BookingController {
         return ResponseEntity.ok("Booking declined successfully.");
     }
 
+    @PostMapping("/{id}/start")
+    public ResponseEntity<String> startBooking(@PathVariable Long id) {
+        bookingService.startBooking(id);
+        return ResponseEntity.ok("Booking started successfully.");
+    }
+
+    @PostMapping("/{id}/end")
+    public ResponseEntity<String> endBooking(@PathVariable Long id) {
+        bookingService.endBooking(id);
+        return ResponseEntity.ok("Booking ended successfully.");
+    }
+
 }

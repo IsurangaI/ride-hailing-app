@@ -15,7 +15,7 @@ import java.util.List;
 @Data
 @Builder
 @AllArgsConstructor
-public class RideRequestedEvent {
+public class RideRequestedEvent extends Event {
     private Long bookingId;
     private String riderId;
     private Double pickupLongitude;
@@ -25,4 +25,8 @@ public class RideRequestedEvent {
     private LocalDateTime requestedAt;
     private List<String> rejectedDrivers; //the blacklist
 
+    @Override
+    public String getEventType() {
+        return "RideRequestedEvent";
+    }
 }

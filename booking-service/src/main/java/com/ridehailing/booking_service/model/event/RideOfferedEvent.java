@@ -5,7 +5,12 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RideOfferedEvent {
+public class RideOfferedEvent extends Event {
     private Long bookingId;
     private String driverId;
+
+    @Override
+    public String getEventType() {
+        return "RideOfferedEvent";
+    }
 }

@@ -3,6 +3,8 @@ package com.ridehailing.booking_service.model;
 import com.ridehailing.booking_service.constants.RideStatus;
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,8 +29,13 @@ public class Booking {
     @Enumerated(EnumType.STRING)
     private RideStatus status; // PENDING, ACCEPTED, REJECTED, COMPLETED
 
+
     private LocalDateTime createdAt;
+    private LocalDateTime startedAt;
+    private LocalDateTime completedAt;
+    private Instant updatedAt;
     private String driverId;
+
     @ElementCollection
     @CollectionTable(name = "booking_rejected_drivers", joinColumns = @JoinColumn(name = "booking_id"))
     @Column(name = "driver_id")
