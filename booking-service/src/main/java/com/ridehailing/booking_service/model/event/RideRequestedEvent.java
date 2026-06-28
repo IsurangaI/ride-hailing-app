@@ -15,7 +15,7 @@ import java.util.List;
 @Data
 @Builder
 @AllArgsConstructor
-public class RideRequestedEvent {
+public class RideRequestedEvent extends Event {
     private Long bookingId;
     private String riderId;
     private Double pickupLongitude;
