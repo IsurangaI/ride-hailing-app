@@ -2,7 +2,9 @@ package com.ridehailing.matchingservice.service;
 
 import ch.hsr.geohash.GeoHash;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.ridehailing.matchingservice.exception.NoDriversAvailableException;
 import com.ridehailing.matchingservice.model.event.DriverMatchedEvent;
+import com.ridehailing.matchingservice.model.event.RideOfferedEvent;
 import com.ridehailing.matchingservice.model.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -81,22 +83,30 @@ public class MatchingService {
         // 3. Select the optimal driver
         // Because your findNearbyDrivers method already sorted them by distance,
         // index 0 is guaranteed to be the closest driver.
-        GeoResult<RedisGeoCommands.GeoLocation<String>> optimalDriver = nearbyDrivers.get(0);
-        String selectedDriverId = optimalDriver.getContent().getName();
-        double distanceToRider = optimalDriver.getDistance().getValue();
+//        GeoResult<RedisGeoCommands.GeoLocation<String>> optimalDriver = nearbyDrivers.get(0);
+//        String selectedDriverId = optimalDriver.getContent().getName();
+//        double distanceToRider = optimalDriver.getDistance().getValue();
 
-        log.info("Matched Driver {} at {} km away for Booking ID: {}",
-                selectedDriverId, distanceToRider, event.getBookingId());
+        String closestDriver = String.valueOf(nearbyDrivers.stream()
+                .filter(driver -> !event.getRejectedDrivers().contains(driver.getContent().getName()))
+                .findFirst()
+                .orElseThrow(NoDriversAvailableException::new));
 
-        // 4. Publish the DriverMatchedEvent
-        DriverMatchedEvent matchEvent = new DriverMatchedEvent(
-                event.getBookingId(),
-                selectedDriverId,
-                MATCHED
-        );
+        kafkaTemplate.send("ride-offers", new RideOfferedEvent(event.getBookingId(), closestDriver));
 
-        // Drop the event into the new topic for the Booking Service to consume
-        kafkaTemplate.send("driver-matches", matchEvent);
-        log.info("Successfully published DriverMatchedEvent to Kafka topic 'driver-matches'.");
+
+//        log.info("Matched Driver {} at {} km away for Booking ID: {}",
+//                selectedDriverId, distanceToRider, event.getBookingId());
+//
+//        // 4. Publish the DriverMatchedEvent
+//        DriverMatchedEvent matchEvent = new DriverMatchedEvent(
+//                event.getBookingId(),
+//                selectedDriverId,
+//                MATCHED
+//        );
+//
+//        // Drop the event into the new topic for the Booking Service to consume
+//        kafkaTemplate.send("driver-matches", matchEvent);
+//        log.info("Successfully published DriverMatchedEvent to Kafka topic 'driver-matches'.");
     }
 }
