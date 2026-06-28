@@ -39,30 +39,13 @@ public class BookingService {
     @Transactional
     public String createBooking(BookingRequest bookingRequest) {
         try {
-            Booking booking = Booking.builder()
-                    .passengerId(bookingRequest.getPassengerId())
-                    .pickupLongitude(bookingRequest.getPickupLongitude())
-                    .pickupLatitude(bookingRequest.getPickupLatitude())
-                    .destinationLongitude(bookingRequest.getDestinationLongitude())
-                    .destinationLatitude(bookingRequest.getDestinationLatitude())
-                    .status(RideStatus.PENDING)
-                    .createdAt(LocalDateTime.now())
-                    .build();
+            Booking booking = Booking.builder().passengerId(bookingRequest.getPassengerId()).pickupLongitude(bookingRequest.getPickupLongitude()).pickupLatitude(bookingRequest.getPickupLatitude()).destinationLongitude(bookingRequest.getDestinationLongitude()).destinationLatitude(bookingRequest.getDestinationLatitude()).status(RideStatus.PENDING).createdAt(LocalDateTime.now()).build();
 
             Booking savedBooking = bookingRepository.save(booking);
 
-            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
-                    .bookingId(savedBooking.getId())
-                    .riderId(savedBooking.getPassengerId())
-                    .pickupLongitude(savedBooking.getPickupLongitude())
-                    .pickupLatitude(savedBooking.getPickupLatitude())
-                    .destinationLongitude(savedBooking.getDestinationLongitude())
-                    .destinationLatitude(savedBooking.getDestinationLatitude())
-                    .requestedAt(LocalDateTime.now())
-                    .rejectedDrivers(savedBooking.getRejectedDrivers())
-                    .build();
+            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder().bookingId(savedBooking.getId()).riderId(savedBooking.getPassengerId()).pickupLongitude(savedBooking.getPickupLongitude()).pickupLatitude(savedBooking.getPickupLatitude()).destinationLongitude(savedBooking.getDestinationLongitude()).destinationLatitude(savedBooking.getDestinationLatitude()).requestedAt(LocalDateTime.now()).rejectedDrivers(savedBooking.getRejectedDrivers()).build();
 
-            this.persistOutBoxMessage(savedBooking,rideRequestedEvent, EVENT_TYPE_RIDE_REQUESTED);
+            this.persistOutBoxMessage(savedBooking, rideRequestedEvent);
 
             return savedBooking.getId().toString();
         } catch (Exception e) {
@@ -87,12 +70,10 @@ public class BookingService {
     }
 
     public RideStatus getBookingStatus(Long id) {
-        return bookingRepository.findById(id)
-                .map(Booking::getStatus)
-                .orElseThrow(() -> {
-                    log.error("Booking [{}] not found.", id);
-                    return new BookingNotFoundException("Booking not found with id: " + id);
-                });
+        return bookingRepository.findById(id).map(Booking::getStatus).orElseThrow(() -> {
+            log.error("Booking [{}] not found.", id);
+            return new BookingNotFoundException("Booking not found with id: " + id);
+        });
     }
 
     @Transactional
@@ -121,23 +102,13 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
         // FIRE THE SAGA AGAIN: Drop a new RideRequestedEvent into the Outbox
         // so the Matching Service finds the NEXT nearest driver.
-        RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
-                .bookingId(booking.getId())
-                .riderId(booking.getPassengerId())
-                .pickupLongitude(booking.getPickupLongitude())
-                .pickupLatitude(booking.getPickupLatitude())
-                .destinationLongitude(booking.getDestinationLongitude())
-                .destinationLatitude(booking.getDestinationLatitude())
-                .requestedAt(LocalDateTime.now())
-                .rejectedDrivers(booking.getRejectedDrivers())
-                .build();
-        this.persistOutBoxMessage(savedBooking, rideRequestedEvent, EVENT_TYPE_RIDE_REQUESTED);
+        RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder().bookingId(booking.getId()).riderId(booking.getPassengerId()).pickupLongitude(booking.getPickupLongitude()).pickupLatitude(booking.getPickupLatitude()).destinationLongitude(booking.getDestinationLongitude()).destinationLatitude(booking.getDestinationLatitude()).requestedAt(LocalDateTime.now()).rejectedDrivers(booking.getRejectedDrivers()).build();
+        this.persistOutBoxMessage(savedBooking, rideRequestedEvent);
     }
 
     @Transactional
     public void startBooking(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
 
         if (!booking.getStatus().equals(RideStatus.ACCEPTED)) {
             throw new IllegalStateException("Booking can only be started if its status is ACCEPTED. Current status: " + booking.getStatus());
@@ -151,8 +122,7 @@ public class BookingService {
 
     @Transactional
     public void endBooking(Long bookingId) {
-        Booking booking = bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow(() -> new BookingNotFoundException("Booking not found with id: " + bookingId));
 
         if (!booking.getStatus().equals(RideStatus.IN_PROGRESS)) {
             throw new IllegalStateException("Booking can only be ended if its status is IN_PROGRESS. Current status: " + booking.getStatus());
@@ -164,22 +134,10 @@ public class BookingService {
         log.info("Booking [{}] ended successfully.", bookingId);
 
         try {
-            TripCompletedEvent tripCompletedEvent = TripCompletedEvent.builder()
-                    .bookingId(booking.getId())
-                    .driverId(booking.getDriverId())
-                    .passengerId(booking.getPassengerId())
-                    .completedAt(LocalDateTime.now())
-                    .build();
+            TripCompletedEvent tripCompletedEvent = TripCompletedEvent.builder().bookingId(booking.getId()).driverId(booking.getDriverId()).passengerId(booking.getPassengerId()).completedAt(LocalDateTime.now()).build();
 
             String jsonPayload = objectMapper.writeValueAsString(tripCompletedEvent);
-            OutboxMessage outboxMessage = OutboxMessage.builder()
-                    .aggregateType(AGGREGATE_TYPE_BOOKING)
-                    .aggregateId(booking.getId().toString())
-                    .eventType(EVENT_TYPE_TRIP_COMPLETED)
-                    .payload(jsonPayload)
-                    .processed(false)
-                    .createdAt(LocalDateTime.now())
-                    .build();
+            OutboxMessage outboxMessage = OutboxMessage.builder().aggregateType(AGGREGATE_TYPE_BOOKING).aggregateId(booking.getId().toString()).eventType(EVENT_TYPE_TRIP_COMPLETED).payload(jsonPayload).processed(false).createdAt(LocalDateTime.now()).build();
             outboxMessagingRepository.save(outboxMessage);
             log.info("Successfully recorded TripCompletedEvent for booking [{}].", booking.getId());
         } catch (JsonProcessingException e) {
@@ -189,17 +147,10 @@ public class BookingService {
     }
 
 
-    public void persistOutBoxMessage(Booking booking, Event event, String eventType) {
+    public void persistOutBoxMessage(Booking booking, Event event) {
         try {
             String jsonPayload = objectMapper.writeValueAsString(event);
-            OutboxMessage outboxMessage = OutboxMessage.builder()
-                    .aggregateType(AGGREGATE_TYPE_BOOKING)
-                    .aggregateId(booking.getId().toString())
-                    .eventType(eventType)
-                    .payload(jsonPayload)
-                    .processed(false)
-                    .createdAt(LocalDateTime.now())
-                    .build();
+            OutboxMessage outboxMessage = OutboxMessage.builder().aggregateType(AGGREGATE_TYPE_BOOKING).aggregateId(booking.getId().toString()).eventType(event.getEventType()).payload(jsonPayload).processed(false).createdAt(LocalDateTime.now()).build();
             outboxMessagingRepository.save(outboxMessage);
             log.info("Successfully recorded booking [{}] and outbox message concurrently.", booking.getId());
         } catch (JsonProcessingException e) {

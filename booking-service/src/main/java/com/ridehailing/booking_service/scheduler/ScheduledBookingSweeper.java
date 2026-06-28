@@ -38,18 +38,9 @@ public class ScheduledBookingSweeper {
 
             bookingRepository.save(booking);
 
-            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
-                    .bookingId(booking.getId())
-                    .riderId(booking.getPassengerId())
-                    .pickupLongitude(booking.getPickupLongitude())
-                    .pickupLatitude(booking.getPickupLatitude())
-                    .destinationLongitude(booking.getDestinationLongitude())
-                    .destinationLatitude(booking.getDestinationLatitude())
-                    .requestedAt(LocalDateTime.now())
-                    .rejectedDrivers(booking.getRejectedDrivers())
-                    .build();
+            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder().bookingId(booking.getId()).riderId(booking.getPassengerId()).pickupLongitude(booking.getPickupLongitude()).pickupLatitude(booking.getPickupLatitude()).destinationLongitude(booking.getDestinationLongitude()).destinationLatitude(booking.getDestinationLatitude()).requestedAt(LocalDateTime.now()).rejectedDrivers(booking.getRejectedDrivers()).build();
 
-            bookingService.persistOutBoxMessage(booking, rideRequestedEvent,EVENT_TYPE_RIDE_REQUESTED );
+            bookingService.persistOutBoxMessage(booking, rideRequestedEvent);
         }
     }
 

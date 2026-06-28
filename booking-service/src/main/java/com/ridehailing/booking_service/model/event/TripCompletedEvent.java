@@ -12,4 +12,10 @@ public class TripCompletedEvent extends Event {
     private String driverId;
     private String passengerId;
     private LocalDateTime completedAt;
+
+
+    @Override
+    public String getEventType() {
+        return "TripCompletedEvent";
+    }
 }

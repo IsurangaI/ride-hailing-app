@@ -25,4 +25,8 @@ public class RideRequestedEvent extends Event {
     private LocalDateTime requestedAt;
     private List<String> rejectedDrivers; //the blacklist
 
+    @Override
+    public String getEventType() {
+        return "RideRequestedEvent";
+    }
 }
