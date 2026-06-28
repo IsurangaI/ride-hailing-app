@@ -4,6 +4,7 @@ import com.ridehailing.booking_service.constants.RideStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "bookings")
@@ -28,4 +29,8 @@ public class Booking {
 
     private LocalDateTime createdAt;
     private String driverId;
+    @ElementCollection
+    @CollectionTable(name = "booking_rejected_drivers", joinColumns = @JoinColumn(name = "booking_id"))
+    @Column(name = "driver_id")
+    private List<String> rejectedDrivers; //the blacklist
 }

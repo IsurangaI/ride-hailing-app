@@ -4,9 +4,10 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.exception.BookingCreationException;
+import com.ridehailing.booking_service.exception.BookingNotFoundException;
 import com.ridehailing.booking_service.model.Booking;
 import com.ridehailing.booking_service.model.OutboxMessage;
-import com.ridehailing.booking_service.model.event.DriverMatchedEvent;
+import com.ridehailing.booking_service.model.event.RideOfferedEvent;
 import com.ridehailing.booking_service.model.event.RideRequestedEvent;
 import com.ridehailing.booking_service.model.request.BookingRequest;
 import com.ridehailing.booking_service.repository.BookingRepository;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,46 +47,94 @@ public class BookingService {
 
             Booking savedBooking = bookingRepository.save(booking);
 
-            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
-                    .bookingId(savedBooking.getId())
-                    .riderId(savedBooking.getPassengerId())
-                    .pickupLongitude(savedBooking.getPickupLongitude())
-                    .pickupLatitude(savedBooking.getPickupLatitude())
-                    .destinationLongitude(savedBooking.getDestinationLongitude())
-                    .destinationLatitude(savedBooking.getDestinationLatitude())
-                    .requestedAt(LocalDateTime.now())
-                    .build();
+            this.persistOutBoxMessage(savedBooking);
 
-
-            String jsonPayload = objectMapper.writeValueAsString(rideRequestedEvent);
-            OutboxMessage outboxMessage = OutboxMessage.builder()
-                    .aggregateType(AGGREGATE_TYPE_BOOKING)
-                    .aggregateId(savedBooking.getId().toString())
-                    .eventType(EVENT_TYPE_RIDE_REQUESTED)
-                    .payload(jsonPayload)
-                    .processed(false)
-                    .createdAt(LocalDateTime.now())
-                    .build();
-            outboxMessagingRepository.save(outboxMessage);
-            log.info("Successfully recorded booking [{}] and outbox message concurrently.", savedBooking.getId());
             return savedBooking.getId().toString();
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize RideRequestedEvent for rider {}: {}", bookingRequest.getPassengerId(), e.getMessage());
-            throw new BookingCreationException("Failed to process booking request due to serialization error.", e);
         } catch (Exception e) {
             log.error("Error occurred while recording booking for rider {}: {}", bookingRequest.getPassengerId(), e.getMessage(), e);
             throw new BookingCreationException("Failed to create booking for rider " + bookingRequest.getPassengerId(), e);
         }
     }
 
-    public void acceptBooking(DriverMatchedEvent driverMatchedEvent){
-        bookingRepository.findById(driverMatchedEvent.getBookingId()).ifPresentOrElse(booking -> {
-            booking.setDriverId(driverMatchedEvent.getDriverId());
-            booking.setStatus(RideStatus.ACCEPTED);
-            bookingRepository.save(booking);
-            log.info("Booking [{}] accepted by driver [{}].", booking.getId(), driverMatchedEvent.getDriverId());
-        }, () -> {
-            log.error("Booking [{}] not found for driver [{}].", driverMatchedEvent.getBookingId(), driverMatchedEvent.getDriverId());
-        });
+
+    public void persistOfferedRide(RideOfferedEvent rideOfferedEvent) {
+        try {
+            Optional<Booking> booking = bookingRepository.findById(rideOfferedEvent.getBookingId());
+            booking.ifPresentOrElse(b -> {
+                b.setStatus(RideStatus.OFFERING);
+                b.setDriverId(rideOfferedEvent.getDriverId());
+                bookingRepository.save(b);
+            }, RuntimeException::new);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
+
+    public RideStatus getBookingStatus(Long id) {
+        return bookingRepository.findById(id)
+                .map(Booking::getStatus)
+                .orElseThrow(() -> {
+                    log.error("Booking [{}] not found.", id);
+                    return new BookingNotFoundException("Booking not found with id: " + id);
+                });
+    }
+
+    @Transactional
+    public void acceptBooking(Long bookingId, String driverId) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+
+        // Concurrency Check: Ensure it wasn't cancelled or timed out!
+        if (!booking.getStatus().equals(RideStatus.OFFERING) || !booking.getDriverId().equals(driverId)) {
+            throw new IllegalStateException("Offer is no longer valid");
+        }
+
+        booking.setStatus(RideStatus.ACCEPTED);
+        bookingRepository.save(booking);
+    }
+
+    @Transactional
+    public void declineBooking(Long bookingId, String driverId) {
+        Booking booking = bookingRepository.findById(bookingId).orElseThrow();
+
+        // Add driver to blacklist
+        booking.getRejectedDrivers().add(driverId);
+        booking.setStatus(RideStatus.PENDING); // Revert to pending
+        booking.setDriverId(null);
+        Booking savedBooking = bookingRepository.save(booking);
+        // FIRE THE SAGA AGAIN: Drop a new RideRequestedEvent into the Outbox
+        // so the Matching Service finds the NEXT nearest driver.
+        this.persistOutBoxMessage(savedBooking);
+    }
+
+    private void persistOutBoxMessage(Booking booking) {
+        try {
+            RideRequestedEvent rideRequestedEvent = RideRequestedEvent.builder()
+                    .bookingId(booking.getId())
+                    .riderId(booking.getPassengerId())
+                    .pickupLongitude(booking.getPickupLongitude())
+                    .pickupLatitude(booking.getPickupLatitude())
+                    .destinationLongitude(booking.getDestinationLongitude())
+                    .destinationLatitude(booking.getDestinationLatitude())
+                    .requestedAt(LocalDateTime.now())
+                    .rejectedDrivers(booking.getRejectedDrivers())
+                    .build();
+
+
+            String jsonPayload = objectMapper.writeValueAsString(rideRequestedEvent);
+            OutboxMessage outboxMessage = OutboxMessage.builder()
+                    .aggregateType(AGGREGATE_TYPE_BOOKING)
+                    .aggregateId(booking.getId().toString())
+                    .eventType(EVENT_TYPE_RIDE_REQUESTED)
+                    .payload(jsonPayload)
+                    .processed(false)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+            outboxMessagingRepository.save(outboxMessage);
+            log.info("Successfully recorded booking [{}] and outbox message concurrently.", booking.getId());
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize RideRequestedEvent for rider {}: {}", booking.getPassengerId(), e.getMessage());
+            throw new BookingCreationException("Failed to process booking request due to serialization error.", e);
+        }
+    }
+
 }
