@@ -7,7 +7,6 @@ import com.ridehailing.booking_service.exception.BookingCreationException;
 import com.ridehailing.booking_service.exception.BookingNotFoundException;
 import com.ridehailing.booking_service.model.Booking;
 import com.ridehailing.booking_service.model.OutboxMessage;
-import com.ridehailing.booking_service.model.event.DriverMatchedEvent;
 import com.ridehailing.booking_service.model.event.RideOfferedEvent;
 import com.ridehailing.booking_service.model.event.RideRequestedEvent;
 import com.ridehailing.booking_service.model.request.BookingRequest;
@@ -80,6 +79,7 @@ public class BookingService {
                 });
     }
 
+    @Transactional
     public void acceptBooking(Long bookingId, String driverId) {
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
 
@@ -92,7 +92,7 @@ public class BookingService {
         bookingRepository.save(booking);
     }
 
-
+    @Transactional
     public void declineBooking(Long bookingId, String driverId) {
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
 
