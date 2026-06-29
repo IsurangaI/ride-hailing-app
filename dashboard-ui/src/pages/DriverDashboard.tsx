@@ -1,8 +1,21 @@
-function DriverDashboard() {
-    return (
-        <div> Driver Dashboard </div>
-    )
-}
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 
+function DriverDashboard() {
+    const { logout } = useAuthStore();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/login');
+    };
+
+    return (
+        <div>
+            <h2>Driver Dashboard</h2>
+            <button onClick={handleLogout}>Logout</button>
+        </div>
+    );
+}
 
 export default DriverDashboard;
