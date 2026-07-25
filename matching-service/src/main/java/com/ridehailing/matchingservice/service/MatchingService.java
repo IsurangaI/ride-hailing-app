@@ -13,6 +13,8 @@ import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoReference;
+import org.springframework.data.redis.domain.geo.GeoShape;
 import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -48,7 +50,8 @@ public class MatchingService {
         for (GeoHash gh : relevantGeoHashes) {
             String shardedKey = "driver_locations:" + gh.toBase32();
             List<GeoResult<RedisGeoCommands.GeoLocation<String>>> shardResults = redisTemplate.opsForGeo()
-                    .search(shardedKey, queryArea)
+                    .search(shardedKey, GeoReference.fromCoordinate(queryArea.getCenter()),
+                            GeoShape.byRadius(queryArea.getRadius()), args)
                     .getContent();
             combinedResults.addAll(shardResults);
         }
