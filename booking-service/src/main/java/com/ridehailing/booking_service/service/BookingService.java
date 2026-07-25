@@ -149,7 +149,7 @@ public class BookingService {
             // Straight-line pickup-to-destination distance. Swap in a routing provider once one exists.
             double distanceInKm = GeoUtils.haversineKm(booking.getPickupLatitude(), booking.getPickupLongitude(),
                     booking.getDestinationLatitude(), booking.getDestinationLongitude());
-            double durationInMinutes = Duration.between(booking.getStartedAt(), completedAt).toSeconds() / 60.0;
+            double durationInMinutes = Duration.between(resolveTripStart(booking), completedAt).toSeconds() / 60.0;
 
             TripCompletedEvent tripCompletedEvent = TripCompletedEvent.builder().bookingId(booking.getId())
                     .riderId(booking.getPassengerId()).distanceInKm(distanceInKm).durationInMinutes(durationInMinutes).build();
@@ -163,6 +163,20 @@ public class BookingService {
             log.error("Failed to serialize TripCompletedEvent for booking {}: {}", booking.getId(), e.getMessage());
             throw new RuntimeException("Failed to process trip completion due to serialization error.", e);
         }
+    }
+
+
+    /**
+     * A booking that reached IN_PROGRESS through startBooking() always has startedAt set. Anything
+     * else (a hand-edited row, a future transition that skips startBooking) falls back to createdAt
+     * so a null does not abort the completion — the duration is then an over-estimate.
+     */
+    private LocalDateTime resolveTripStart(Booking booking) {
+        if (booking.getStartedAt() != null) {
+            return booking.getStartedAt();
+        }
+        log.warn("Booking [{}] has no startedAt; falling back to createdAt for trip duration.", booking.getId());
+        return booking.getCreatedAt();
     }
 
 
