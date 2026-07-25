@@ -15,7 +15,7 @@ public class RideOfferedEventConsumer {
     private final BookingService bookingService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "ride-offers", groupId = "matching-group")
+    @KafkaListener(topics = "ride-offers", groupId = "booking-group")
     public void handleRideOfferedEventConsumer(String messagePayload){
         log.info("Received raw Kafka message: {}", messagePayload);
 
