@@ -1,5 +1,6 @@
 package com.ridehailing.booking_service.config;
 
+import com.ridehailing.booking_service.constants.KafkaTopics;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,7 +16,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic rideRequestsTopic() {
-        return TopicBuilder.name("ride-requests")
+        return TopicBuilder.name(KafkaTopics.RIDE_REQUESTS)
                 .partitions(3)  // Allows up to 3 matching-service instances in 'matching-group'
                 .replicas(1)    // 1 for local Docker (single broker); 3 for prod
                 .build();
@@ -23,7 +24,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic tripsCompletedTopic() {
-        return TopicBuilder.name("trips-completed")
+        return TopicBuilder.name(KafkaTopics.TRIPS_COMPLETED)
                 .partitions(3)
                 .replicas(1)
                 .build();
