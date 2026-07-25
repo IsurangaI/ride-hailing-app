@@ -11,11 +11,15 @@ spring:
     show-sql: true
   kafka:
     bootstrap-servers: localhost:9092
+    consumer:
+      group-id: booking-group
+      auto-offset-reset: earliest # Start reading from the beginning if no offset exists
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # Wait for all in-sync replicas to acknowledge the write for maximum durability
-      acks: all
+      acks: all # Wait for all in-sync replicas to acknowledge the write for maximum durability | but in local we have 1 broker
       properties:
         enable.idempotence: true
 server:

@@ -3,11 +3,14 @@ package com.ridehailing.booking_service.controller;
 
 import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.model.request.BookingRequest;
+import com.ridehailing.booking_service.model.response.DriverOfferResponse;
 import com.ridehailing.booking_service.service.BookingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/v1/bookings")
@@ -22,6 +25,11 @@ public class BookingController {
         return ResponseEntity.status(HttpStatus.CREATED).body(bookingId);
     }
 
+    @GetMapping("/offers")
+    public ResponseEntity<List<DriverOfferResponse>> getDriverOffers(@RequestHeader("X-User-Id") String driverId) {
+        return ResponseEntity.ok(bookingService.getOffersForDriver(driverId));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<RideStatus> pollBookingStatus(@PathVariable Long id) {
         RideStatus status = bookingService.getBookingStatus(id);
@@ -30,13 +38,13 @@ public class BookingController {
 
 
     @PostMapping("/{id}/accept")
-    public ResponseEntity<String> acceptBooking(@PathVariable Long bookingId,@RequestBody String driverId) {
+    public ResponseEntity<String> acceptBooking(@PathVariable("id") Long bookingId,@RequestBody String driverId) {
         bookingService.acceptBooking(bookingId,driverId);
         return ResponseEntity.ok("Booking accepted successfully.");
     }
 
     @PostMapping("/{id}/decline")
-    public ResponseEntity<String> declineBooking(@PathVariable Long bookingId,@RequestBody String driverId) {
+    public ResponseEntity<String> declineBooking(@PathVariable("id") Long bookingId,@RequestBody String driverId) {
         bookingService.declineBooking(bookingId, driverId);
         return ResponseEntity.ok("Booking declined successfully.");
     }
