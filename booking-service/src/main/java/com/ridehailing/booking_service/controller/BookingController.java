@@ -30,13 +30,13 @@ public class BookingController {
 
 
     @PostMapping("/{id}/accept")
-    public ResponseEntity<String> acceptBooking(@PathVariable Long bookingId,@RequestBody String driverId) {
+    public ResponseEntity<String> acceptBooking(@PathVariable("id") Long bookingId,@RequestBody String driverId) {
         bookingService.acceptBooking(bookingId,driverId);
         return ResponseEntity.ok("Booking accepted successfully.");
     }
 
     @PostMapping("/{id}/decline")
-    public ResponseEntity<String> declineBooking(@PathVariable Long bookingId,@RequestBody String driverId) {
+    public ResponseEntity<String> declineBooking(@PathVariable("id") Long bookingId,@RequestBody String driverId) {
         bookingService.declineBooking(bookingId, driverId);
         return ResponseEntity.ok("Booking declined successfully.");
     }
