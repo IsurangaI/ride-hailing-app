@@ -1,6 +1,7 @@
 package com.ridehailing.booking_service.repository;
 
 
+import com.ridehailing.booking_service.constants.RideStatus;
 import com.ridehailing.booking_service.model.Booking;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -22,5 +23,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     //JPA method
     List<Booking> findByStatusAndUpdatedAtBefore(String status, Instant cutoffTime);
+
+    List<Booking> findByDriverIdAndStatus(String driverId, RideStatus status);
 
 }

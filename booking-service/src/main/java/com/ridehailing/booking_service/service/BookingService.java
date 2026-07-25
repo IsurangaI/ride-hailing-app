@@ -12,6 +12,7 @@ import com.ridehailing.booking_service.model.event.RideOfferedEvent;
 import com.ridehailing.booking_service.model.event.RideRequestedEvent;
 import com.ridehailing.booking_service.model.event.TripCompletedEvent;
 import com.ridehailing.booking_service.model.request.BookingRequest;
+import com.ridehailing.booking_service.model.response.DriverOfferResponse;
 import com.ridehailing.booking_service.repository.BookingRepository;
 import com.ridehailing.booking_service.repository.OutboxMessagingRepository;
 import com.ridehailing.booking_service.util.GeoUtils;
@@ -23,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -81,6 +83,20 @@ public class BookingService {
             log.error("Booking [{}] not found.", id);
             return new BookingNotFoundException("Booking not found with id: " + id);
         });
+    }
+
+    /**
+     * Offers currently held by this driver. The sweeper flips an offer back to PENDING after 15s,
+     * so a driver polling this endpoint only ever sees offers that are still live.
+     */
+    @Transactional(readOnly = true)
+    public List<DriverOfferResponse> getOffersForDriver(String driverId) {
+        return bookingRepository.findByDriverIdAndStatus(driverId, RideStatus.OFFERING).stream()
+                .map(b -> DriverOfferResponse.builder().bookingId(b.getId()).passengerId(b.getPassengerId())
+                        .pickupLongitude(b.getPickupLongitude()).pickupLatitude(b.getPickupLatitude())
+                        .destinationLongitude(b.getDestinationLongitude()).destinationLatitude(b.getDestinationLatitude())
+                        .status(b.getStatus()).offeredAt(b.getUpdatedAt()).build())
+                .toList();
     }
 
     @Transactional
