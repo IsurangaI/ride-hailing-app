@@ -3,7 +3,6 @@ package com.ridehailing.matchingservice.service;
 import ch.hsr.geohash.GeoHash;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ridehailing.matchingservice.exception.NoDriversAvailableException;
-import com.ridehailing.matchingservice.model.event.DriverMatchedEvent;
 import com.ridehailing.matchingservice.model.event.RideOfferedEvent;
 import com.ridehailing.matchingservice.model.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -87,10 +86,11 @@ public class MatchingService {
 //        String selectedDriverId = optimalDriver.getContent().getName();
 //        double distanceToRider = optimalDriver.getDistance().getValue();
 
-        String closestDriver = String.valueOf(nearbyDrivers.stream()
+        String closestDriver = nearbyDrivers.stream()
                 .filter(driver -> !event.getRejectedDrivers().contains(driver.getContent().getName()))
+                .map(driver -> driver.getContent().getName())
                 .findFirst()
-                .orElseThrow(NoDriversAvailableException::new));
+                .orElseThrow(NoDriversAvailableException::new);
 
         kafkaTemplate.send("ride-offers", new RideOfferedEvent(event.getBookingId(), closestDriver));
 
