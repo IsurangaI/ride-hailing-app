@@ -2,7 +2,7 @@ spring:
   application:
     name: auth-service
   datasource:
-    url: ${DB_URL}
+    url: ${DB_URL}/authdb
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
