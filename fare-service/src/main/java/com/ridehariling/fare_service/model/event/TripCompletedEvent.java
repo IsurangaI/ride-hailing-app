@@ -1,12 +1,12 @@
 package com.ridehariling.fare_service.model.event;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Data;
 
-import java.util.UUID;
-
 @Data
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TripCompletedEvent {
-    private long bookingId;
+    private Long bookingId;
     private String riderId;
     private double distanceInKm;
     private double durationInMinutes;

@@ -33,6 +33,11 @@ public class TripCompletedConsumer {
         try {
             TripCompletedEvent event = objectMapper.readValue(payload, TripCompletedEvent.class);
 
+            if (event.getBookingId() == null) {
+                log.error("Discarding TripCompletedEvent with no bookingId: {}", payload);
+                return;
+            }
+
             // 1. Idempotency Check: Did we already calculate this?
             if (fareRepository.findByBookingId(event.getBookingId()).isPresent()) {
                 log.warn("Fare already calculated for booking: {}", event.getBookingId());
