@@ -32,7 +32,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/health", "/api/auth/login", "/api/auth/register").permitAll() // Public endpoints
+                        .requestMatchers("/health", "/actuator/health/**", "/api/auth/login", "/api/auth/register").permitAll() // Public endpoints
                         .anyRequest().authenticated() // Everything else requires a Bearer Token
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
