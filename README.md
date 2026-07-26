@@ -152,8 +152,8 @@ npm run dev     # http://localhost:5173
 
 | Variable | Services | Default |
 |----------|----------|---------|
-| `DB_URL` | auth-service, booking-service | `jdbc:postgresql://localhost:5432/{db}` |
-| `DB_USER` / `DB_PASSWORD` | auth-service, booking-service | `postgres` / `postgres` |
+| `DB_URL` | auth-, booking-, fare-service | `jdbc:postgresql://localhost:5432` — base URL only, each service appends its own database name |
+| `DB_USER` / `DB_PASSWORD` | auth-, booking-, fare-service | `postgres` / `postgres` |
 | `JWT_SECRET` | api-gateway, auth-service | base64 key — must be identical in both |
 | `REDIS_HOST` / `REDIS_PORT` | location-, matching-, fare-service | `localhost` / `6379` |
 
