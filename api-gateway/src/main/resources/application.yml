@@ -46,6 +46,16 @@ spring:
 server:
   port: 8080
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 jwt:
   # Must be the EXACT same secret as in auth-service/application.yml
   secret: ${JWT_SECRET}
