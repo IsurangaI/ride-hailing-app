@@ -1,6 +1,7 @@
 package com.ridehailing.booking_service.async;
 
 
+import com.ridehailing.booking_service.constants.KafkaTopics;
 import com.ridehailing.booking_service.model.OutboxMessage;
 import com.ridehailing.booking_service.repository.OutboxMessagingRepository;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -21,7 +23,12 @@ public class OutboxRelayWorker {
     private final OutboxMessagingRepository outboxRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
 
-    private static final String TOPIC_NAME = "ride-requests";
+    // Each event type has exactly one destination topic. Adding a new outbox event
+    // means adding it here, otherwise the relay cannot route it.
+    private static final Map<String, String> TOPIC_BY_EVENT_TYPE = Map.of(
+            "RideRequestedEvent", KafkaTopics.RIDE_REQUESTS,
+            "TripCompletedEvent", KafkaTopics.TRIPS_COMPLETED
+    );
 
     // Runs every 2000 milliseconds (2 seconds)
     @Scheduled(fixedDelay = 2000)
@@ -36,18 +43,25 @@ public class OutboxRelayWorker {
         log.info("Found {} unprocessed outbox messages. Initiating relay...", messages.size());
 
         for (OutboxMessage msg : messages) {
+            // 1. Resolve the destination topic from the event type.
+            String topic = TOPIC_BY_EVENT_TYPE.get(msg.getEventType());
+            if (topic == null) {
+                log.error("No topic mapped for eventType '{}' (outbox message ID: {}). Skipping; row left unprocessed.", msg.getEventType(), msg.getId());
+                continue;
+            }
+
             try {
-                // 1. Publish to Kafka
+                // 2. Publish to Kafka
                 // We use the aggregateId (Booking ID) as the Kafka Key to ensure events
                 // for the same booking always land on the same Kafka partition.
-                kafkaTemplate.send(TOPIC_NAME, msg.getAggregateId(), msg.getPayload())
+                kafkaTemplate.send(topic, msg.getAggregateId(), msg.getPayload())
                         .get(3, TimeUnit.SECONDS); // Block and wait for Kafka ACK
 
-                // 2. Mark as processed ONLY if Kafka acknowledged the receipt
+                // 3. Mark as processed ONLY if Kafka acknowledged the receipt
                 msg.setProcessed(true);
                 outboxRepository.save(msg);
 
-                log.info("Successfully published outbox message ID: {} to Kafka", msg.getId());
+                log.info("Successfully published outbox message ID: {} to topic [{}]", msg.getId(), topic);
 
             } catch (Exception e) {
                 // If Kafka is down, or network fails, we log the error and BREAK the loop.

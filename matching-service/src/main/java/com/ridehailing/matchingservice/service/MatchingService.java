@@ -3,7 +3,6 @@ package com.ridehailing.matchingservice.service;
 import ch.hsr.geohash.GeoHash;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.ridehailing.matchingservice.exception.NoDriversAvailableException;
-import com.ridehailing.matchingservice.model.event.DriverMatchedEvent;
 import com.ridehailing.matchingservice.model.event.RideOfferedEvent;
 import com.ridehailing.matchingservice.model.event.RideRequestedEvent;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +13,8 @@ import org.springframework.data.geo.GeoResult;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.domain.geo.GeoReference;
+import org.springframework.data.redis.domain.geo.GeoShape;
 import org.springframework.data.redis.domain.geo.Metrics;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -24,41 +25,38 @@ import java.util.*;
 @RequiredArgsConstructor
 @Slf4j
 public class MatchingService {
-    private static final String MATCHED = "MATCHED";
     private final RedisTemplate<String, String> redisTemplate;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public List<GeoResult<RedisGeoCommands.GeoLocation<String>>> findNearbyDrivers(double riderLng, double riderLat, double radiusInKm) {
-        // Define the precision for geohashing (must match the precision used for writing)
-        int geohashPrecision = 5; // As defined in GeoUtils.getAutomaticShardKey
+         // Must match the precision used when writing, see GeoUtils.getAutomaticShardKey
+        int geohashPrecision = 5;
 
-        // 1. Compute the rider's geohash
         GeoHash riderGeoHash = GeoHash.withCharacterPrecision(riderLat, riderLng, geohashPrecision);
 
-        // 2. Determine which neighboring cells the search radius could touch
+        // Cover the rider's own cell plus all 8 neighbors so boundary drivers aren't missed
         Set<GeoHash> relevantGeoHashes = new HashSet<>();
-        relevantGeoHashes.add(riderGeoHash); // Add the rider's own geohash
-        relevantGeoHashes.addAll(List.of(riderGeoHash.getAdjacent())); // Add all 8 neighbors
+        relevantGeoHashes.add(riderGeoHash);
+        relevantGeoHashes.addAll(List.of(riderGeoHash.getAdjacent()));
 
-        // Prepare for GEOSEARCH
         Circle queryArea = new Circle(new Point(riderLng, riderLat), new Distance(radiusInKm, Metrics.KILOMETERS));
         RedisGeoCommands.GeoSearchCommandArgs args = RedisGeoCommands.GeoSearchCommandArgs.newGeoSearchArgs()
                 .includeDistance()
-                .sortAscending(); // Sorting will be done after merging
+                .sortAscending();
 
+        // A Set dedupes drivers that surface from more than one shard
         Set<GeoResult<RedisGeoCommands.GeoLocation<String>>> combinedResults = new HashSet<>();
 
-        // 3. Run GEOSEARCH on each relevant shard
         for (GeoHash gh : relevantGeoHashes) {
             String shardedKey = "driver_locations:" + gh.toBase32();
             List<GeoResult<RedisGeoCommands.GeoLocation<String>>> shardResults = redisTemplate.opsForGeo()
-                    .search(shardedKey, queryArea)
+                    .search(shardedKey, GeoReference.fromCoordinate(queryArea.getCenter()),
+                            GeoShape.byRadius(queryArea.getRadius()), args)
                     .getContent();
             combinedResults.addAll(shardResults);
         }
 
-        // 4. Merge and dedupe results (handled by using a Set)
-        // 5. Sort by distance
+        // Per-shard sorting doesn't survive the merge, so sort the combined set here
         List<GeoResult<RedisGeoCommands.GeoLocation<String>>> sortedResults = new ArrayList<>(combinedResults);
         sortedResults.sort(Comparator.comparing(geoResult -> geoResult.getDistance().getValue()));
 
@@ -68,45 +66,23 @@ public class MatchingService {
     public void findAndAssignDriver(RideRequestedEvent event) throws JsonProcessingException {
         log.info("Initiating driver search for Booking ID: {}", event.getBookingId());
 
-        // 1. Execute your geospatial search (e.g., 3.0 kilometer radius)
         List<GeoResult<RedisGeoCommands.GeoLocation<String>>> nearbyDrivers =
                 findNearbyDrivers(event.getPickupLongitude(), event.getPickupLatitude(), 3.0);
 
-        // 2. Handle the scenario where no drivers are nearby
         if (nearbyDrivers.isEmpty()) {
+            // TODO: publish a RideUnmatchedEvent so booking-service can mark the ride FAILED
             log.warn("No drivers found within 3km for Booking ID: {}. Search aborted.", event.getBookingId());
-            // In a production system, you might publish a "RideUnmatchedEvent" here
-            // so the Booking Service can update the DB status to "FAILED" and notify the user.
             return;
         }
 
-        // 3. Select the optimal driver
-        // Because your findNearbyDrivers method already sorted them by distance,
-        // index 0 is guaranteed to be the closest driver.
-//        GeoResult<RedisGeoCommands.GeoLocation<String>> optimalDriver = nearbyDrivers.get(0);
-//        String selectedDriverId = optimalDriver.getContent().getName();
-//        double distanceToRider = optimalDriver.getDistance().getValue();
-
-        String closestDriver = String.valueOf(nearbyDrivers.stream()
+        // Already sorted by distance, so the first driver who hasn't rejected this ride is the closest
+        String closestDriver = nearbyDrivers.stream()
                 .filter(driver -> !event.getRejectedDrivers().contains(driver.getContent().getName()))
+                .map(driver -> driver.getContent().getName())
                 .findFirst()
-                .orElseThrow(NoDriversAvailableException::new));
+                .orElseThrow(NoDriversAvailableException::new);
 
         kafkaTemplate.send("ride-offers", new RideOfferedEvent(event.getBookingId(), closestDriver));
-
-
-//        log.info("Matched Driver {} at {} km away for Booking ID: {}",
-//                selectedDriverId, distanceToRider, event.getBookingId());
-//
-//        // 4. Publish the DriverMatchedEvent
-//        DriverMatchedEvent matchEvent = new DriverMatchedEvent(
-//                event.getBookingId(),
-//                selectedDriverId,
-//                MATCHED
-//        );
-//
-//        // Drop the event into the new topic for the Booking Service to consume
-//        kafkaTemplate.send("driver-matches", matchEvent);
-//        log.info("Successfully published DriverMatchedEvent to Kafka topic 'driver-matches'.");
+        log.info("Offered Booking ID {} to driver {}", event.getBookingId(), closestDriver);
     }
 }
