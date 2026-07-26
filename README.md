@@ -13,51 +13,8 @@ A production-grade ride-hailing backend built as **event-driven microservices** 
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    FE["dashboard-ui\nReact 19 · TypeScript · Zustand"]
+<img width="992" height="667" alt="Untitled Diagram" src="https://github.com/user-attachments/assets/f46bd4c1-a9fc-448d-809d-588c382c22cc" />
 
-    subgraph gateway["API Layer"]
-        GW["API Gateway :8080\nJWT validation · Spring Cloud Gateway"]
-    end
-
-    subgraph saga["Choreography-based Saga"]
-        BOOK["Booking Service :8082\nride lifecycle · outbox producer"]
-        MATCH["Matching Service :8084\ngeohash radius search"]
-        FARE["Fare Service :8086\nfare calculation · outbox producer"]
-    end
-
-    subgraph support["Supporting Services"]
-        AUTH["Auth Service :8081\nJWT issuance · BCrypt"]
-        LOC["Location Service :8083\ndriver GPS · geohash sharding"]
-    end
-
-    subgraph infra["Infrastructure"]
-        KAFKA[["Apache Kafka"]]
-        PG[("PostgreSQL\nauthdb · bookingdb · faredb")]
-        RD[("Redis\nGeospatial index")]
-    end
-
-    FE --> GW
-    GW -->|"/api/auth/**"| AUTH
-    GW -->|"/api/rides/**"| BOOK
-    GW -->|"/api/locations/**"| LOC
-
-    AUTH --> PG
-    BOOK --> PG
-    FARE --> PG
-    LOC --> RD
-    MATCH --> RD
-
-    BOOK -->|"outbox relay → ride-requests"| KAFKA
-    KAFKA -->|"ride-requests"| MATCH
-    MATCH -->|"ride-offers"| KAFKA
-    KAFKA -->|"ride-offers"| BOOK
-
-    BOOK -->|"outbox relay → trips-completed"| KAFKA
-    KAFKA -->|"trips-completed"| FARE
-    FARE -->|"outbox relay → fare-calculated"| KAFKA
-```
 
 ---
 
