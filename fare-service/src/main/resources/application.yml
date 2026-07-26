@@ -1,19 +1,32 @@
 spring:
   application:
     name: fare-service
+  # Optional local overrides. `.env` is gitignored and never committed
+  config:
+    import:
+      - "optional:file:./.env[.properties]"
+      - "optional:file:../.env[.properties]"
   threads:
     virtual:
       enabled: true
+  datasource:
+    url: "${DB_URL:jdbc:postgresql://localhost:5432/faredb}"
+    username: "${DB_USER:postgres}"
+    password: "${DB_PASSWORD:postgres}"
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: "${REDIS_HOST:localhost}"
+      port: "${REDIS_PORT:6379}"
 
   # Kafka Configuration
   kafka:
     bootstrap-servers: "${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}"
     consumer:
-      group-id: matching-group
+      group-id: fare-service-group
       auto-offset-reset: earliest # Start reading from the beginning if no offset exists
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer

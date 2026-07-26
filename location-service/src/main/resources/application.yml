@@ -1,13 +1,19 @@
 spring:
   application:
     name: location-service
+  # Optional local overrides. `.env` is gitignored and never committed — put real
+  # secrets there. Both paths are optional so the service starts without it.
+  config:
+    import:
+      - "optional:file:./.env[.properties]"
+      - "optional:file:../.env[.properties]"
   threads:
     virtual:
       enabled: true
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
+      host: "${REDIS_HOST:localhost}"
+      port: "${REDIS_PORT:6379}"
 
 server:
   port: 8083
