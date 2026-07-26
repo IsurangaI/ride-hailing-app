@@ -32,7 +32,7 @@ public class DriverLocationController {
             @RequestParam double latitude,
             @RequestParam double longitude,
             @RequestParam(defaultValue = "5.0") double radius) {
-        return ResponseEntity.ok(driverLocationService.findNearbyDrivers(latitude, longitude, radius));
+        return ResponseEntity.ok(driverLocationService.findNearbyDrivers(longitude, latitude, radius));
     }
 
 }
